@@ -1,50 +1,57 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
+import mongoose from "mongoose";
 import path from "path";
 import { fileURLToPath } from "url";
+import authRoutes from "./routes/auth.js";
+
+dotenv.config();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+const PORT = process.env.PORT || 5000;
 
-// Resolve __dirname in ES modules
+// Fix for __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ------------------------------
-// API ROUTES
-// ------------------------------
+// --------------------------
+// MIDDLEWARE
+// --------------------------
+app.use(cors());
+app.use(express.json()); // IMPORTANT — parses req.body
 
-app.get("/api/nudges", (req, res) => {
-  res.json([
-    {
-      id: 1,
-      title: "Confirmation Bias",
-      description:
-        "A nudge that encourages users to explore information that challenges their existing beliefs.",
-    },
-    {
-      id: 2,
-      title: "Loss Aversion",
-      description:
-        "A nudge that emphasizes what might be lost instead of what might be gained.",
-    },
-  ]);
+// --------------------------
+// DATABASE
+// --------------------------
+mongoose
+    .connect(process.env.MONGO_URI)
+    .then(() => console.log("MongoDB Connected"))
+    .catch((err) => console.error("Mongo Error:", err));
+
+// --------------------------
+// ROUTES
+// --------------------------
+app.use("/api/auth", authRoutes);
+
+// Test route to verify server is actually receiving requests
+app.get("/test", (req, res) => {
+    console.log("Test route hit");
+    res.send("Server working");
 });
 
-// ------------------------------
-// FRONTEND BUILD
-// ------------------------------
-const buildPath = path.join(__dirname, "../client/build");
-app.use(express.static(buildPath));
+// --------------------------
+// SERVE REACT BUILD (OPTIONAL)
+// --------------------------
+const clientBuildPath = path.join(__dirname, "../client/build");
 
-// Serve React app for all unknown routes
-app.get((req, res) => {
-  res.sendFile(path.join(buildPath, "index.html"));
+app.use(express.static(clientBuildPath));
+
+app.get(/.*/, (req, res) => {
+    res.sendFile(path.join(clientBuildPath, "index.html"));
 });
 
-// ------------------------------
-// START SERVER
-// ------------------------------
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// --------------------------
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
